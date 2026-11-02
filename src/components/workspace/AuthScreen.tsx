@@ -96,7 +96,7 @@ export default function AuthScreen({
           setMessage("Account created. Verify your email, then sign in.");
           return;
         }
-        if (!credential.user.emailVerified && mode !== "register") throw new Error("Please verify your email address before signing in.");
+        if (!credential.user.emailVerified) throw new Error("Please verify your email address before signing in.");
         const user = await provisionFirebaseSession(credential.user, category, fullName);
         onAuthenticated(user as AuthUser);
         return;
@@ -173,6 +173,7 @@ export default function AuthScreen({
               setGoogleMessage("");
               setBusy(true);
               try {
+                if (!firebaseAuth || !googleProvider) throw new Error("Firebase Authentication is not configured.");
                 const credential = await signInWithPopup(firebaseAuth, googleProvider);
                 const user = await provisionFirebaseSession(credential.user, category);
                 onAuthenticated(user as AuthUser);
