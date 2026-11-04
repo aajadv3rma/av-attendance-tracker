@@ -40,7 +40,7 @@ function parseLocalDateTime(date: string, time: string) {
 export function addDays(date: string, days: number) {
   const [year, month, day] = date.split("-").map(Number);
   const value = new Date(utcTimestamp(year, month, day + days));
-  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
+  return `${String(value.getUTCFullYear()).padStart(4, "0")}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
 }
 
 export function dateInTimezone(date: Date, timezone: string) {
