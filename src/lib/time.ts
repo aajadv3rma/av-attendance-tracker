@@ -1,6 +1,45 @@
+function utcTimestamp(year: number, month: number, day: number, hour = 0, minute = 0, second = 0) {
+  const value = new Date(0);
+  value.setUTCFullYear(year, month - 1, day);
+  value.setUTCHours(hour, minute, second, 0);
+  return value.getTime();
+}
+
+function parseLocalDateTime(date: string, time: string) {
+  const dateMatch = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(date);
+  const timeMatch = /^(\\d{2}):(\\d{2})$/.exec(time);
+  if (!dateMatch || !timeMatch) {
+    throw new Error("Enter a valid local date and time.");
+  }
+
+  const [, yearText, monthText, dayText] = dateMatch;
+  const [, hourText, minuteText] = timeMatch;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+  if (
+    year < 1 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > daysInMonth[month - 1] ||
+    hour > 23 ||
+    minute > 59
+  ) {
+    throw new Error("Enter a valid local date and time.");
+  }
+
+  return { year, month, day, hour, minute };
+}
+
 export function addDays(date: string, days: number) {
   const [year, month, day] = date.split("-").map(Number);
-  const value = new Date(Date.UTC(year, month - 1, day + days));
+  const value = new Date(utcTimestamp(year, month, day + days));
   return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
 }
 
@@ -16,12 +55,8 @@ export function dateInTimezone(date: Date, timezone: string) {
 }
 
 export function localDateTimeToUtc(date: string, time: string, timezone: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  const [hour, minute] = time.split(":").map(Number);
-  if (![year, month, day, hour, minute].every(Number.isFinite) || hour > 23 || minute > 59) {
-    throw new Error("Enter a valid local date and time.");
-  }
-  const target = Date.UTC(year, month - 1, day, hour, minute);
+  const { year, month, day, hour, minute } = parseLocalDateTime(date, time);
+  const target = utcTimestamp(year, month, day, hour, minute);
   let guess = target;
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
@@ -33,14 +68,29 @@ export function localDateTimeToUtc(date: string, time: string, timezone: string)
     second: "2-digit",
     hourCycle: "h23",
   });
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
     const parts = formatter.formatToParts(new Date(guess));
     const values = Object.fromEntries(parts.map((part) => [part.type, Number(part.value)]));
-    const represented = Date.UTC(values.year, values.month - 1, values.day, values.hour, values.minute, values.second);
+    const represented = utcTimestamp(values.year, values.month, values.day, values.hour, values.minute, values.second);
     const difference = target - represented;
     guess += difference;
     if (difference === 0) break;
   }
+
+  const resolved = Object.fromEntries(
+    formatter.formatToParts(new Date(guess)).map((part) => [part.type, Number(part.value)])
+  );
+  if (
+    resolved.year !== year ||
+    resolved.month !== month ||
+    resolved.day !== day ||
+    resolved.hour !== hour ||
+    resolved.minute !== minute
+  ) {
+    throw new Error("That local time does not exist in the selected timezone. Choose a different time.");
+  }
+
   return new Date(guess);
 }
 
