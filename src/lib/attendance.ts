@@ -27,15 +27,37 @@ function minutesBetween(start: string | Date, end: string | Date) {
 }
 
 function breakDuration(entries: BreakEntry[], start?: Date | null, end?: Date | null) {
-  return entries.reduce((sum, entry) => {
-    if (entry.paid || !entry.startAt || !entry.endAt) return sum;
-    const breakStart = new Date(entry.startAt);
-    const breakEnd = new Date(entry.endAt);
-    if (!Number.isFinite(breakStart.getTime()) || !Number.isFinite(breakEnd.getTime())) return sum;
-    const clippedStart = start ? Math.max(breakStart.getTime(), start.getTime()) : breakStart.getTime();
-    const clippedEnd = end ? Math.min(breakEnd.getTime(), end.getTime()) : breakEnd.getTime();
-    return sum + Math.max(0, Math.floor((clippedEnd - clippedStart) / 60_000));
-  }, 0);
+  const intervals = entries.flatMap((entry) => {
+    if (entry.paid || !entry.startAt || !entry.endAt) return [];
+    const breakStart = new Date(entry.startAt).getTime();
+    const breakEnd = new Date(entry.endAt).getTime();
+    if (!Number.isFinite(breakStart) || !Number.isFinite(breakEnd) || breakEnd <= breakStart) return [];
+    const clippedStart = start ? Math.max(breakStart, start.getTime()) : breakStart;
+    const clippedEnd = end ? Math.min(breakEnd, end.getTime()) : breakEnd;
+    return clippedEnd > clippedStart ? [[clippedStart, clippedEnd] as const] : [];
+  }).sort((a, b) => a[0] - b[0]);
+
+  let total = 0;
+  let rangeStart: number | null = null;
+  let rangeEnd = 0;
+
+  for (const [currentStart, currentEnd] of intervals) {
+    if (rangeStart === null) {
+      rangeStart = currentStart;
+      rangeEnd = currentEnd;
+    } else if (currentStart <= rangeEnd) {
+      rangeEnd = Math.max(rangeEnd, currentEnd);
+    } else {
+      total += Math.floor((rangeEnd - rangeStart) / 60_000);
+      rangeStart = currentStart;
+      rangeEnd = currentEnd;
+    }
+  }
+
+  if (rangeStart !== null) {
+    total += Math.floor((rangeEnd - rangeStart) / 60_000);
+  }
+  return total;
 }
 
 export function calculateRecord(input: {
