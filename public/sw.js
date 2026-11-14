@@ -1,4 +1,4 @@
-const CACHE_NAME = "av-attendance-shell-v1";
+const CACHE_NAME = "av-attendance-shell-v2";
 const STATIC_ASSETS = ["/offline.html", "/manifest.webmanifest", "/icons/icon-192.svg", "/icons/icon-512.svg"];
 
 self.addEventListener("install", (event) => {
@@ -28,7 +28,7 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(fetch(request).then((response) => {
-      if (response.ok && ["/", "/workspace", "/about", "/reset-password", "/verify"].includes(url.pathname)) {
+      if (response.ok && !url.search && ["/", "/workspace", "/about", "/reset-password", "/verify"].includes(url.pathname)) {
         const copy = response.clone();
         void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
       }
